@@ -1,0 +1,7 @@
+Makefile
+/parrot/
+/parrot_install/
+pmtcl.pbc
+pmtcl.c
+pmtcl.o
+pmtcl
