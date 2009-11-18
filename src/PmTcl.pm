@@ -18,7 +18,9 @@ grammar PmTcl::Grammar is HLL::Grammar {
     }
 
     token command_substitution { '[' ~ ']' <command> }
-    token bareword { <-[\$\[\ \]]>+ }
+    token bareword { <-barestopper>+ }
+
+    token barestopper { \s | <[\$\[\]]> }
 
     # expression parsing
 
