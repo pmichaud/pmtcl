@@ -5,7 +5,22 @@ grammar PmTcl::Grammar is HLL::Grammar {
 
     token command { [ <.ws> <word> ]+ }
 
-    token word { \S+ }
+    token word { 
+       | <WORD=braced_word>
+       | <WORD=compound_word>
+    }
+
+    token braced_word { '{' $<val>=[<-[}]>*] '}' }
+
+    token compound_word { 
+        | <command_substitution>
+        | <bareword>
+    }
+
+    token command_substitution { '[' ~ ']' <command> }
+    token bareword { <-[\$\[\ \]]>+ }
+
+    # expression parsing
 
     INIT {
         PmTcl::Grammar.O(':prec<13>', '%multiplicative');
@@ -37,7 +52,18 @@ class PmTcl::Actions is HLL::Actions {
         make $past;
     }
 
-    method word($/) { make ~$/; }
+    method word($/) { make $<WORD>.ast; }
+
+    method braced_word($/) { make ~$<val>; }
+
+    method compound_word($/) { 
+        make $<bareword> 
+             ?? $<bareword>.ast
+             !! $<command_substitution>.ast;
+    }
+
+    method bareword($/) { make ~$/; }
+    method command_substitution($/) { make $<command>.ast; }
 
     method term:sym<integer>($/) { make $<integer>.ast; }
 }
@@ -61,6 +87,6 @@ our sub expr(*@args) {
             :rule('EXPR'),
             :actions(PmTcl::Actions) 
         );
-    pir::say(PAST::Compiler.eval(PAST::Block.new($parse.ast)));
+    PAST::Compiler.eval(PAST::Block.new($parse.ast));
 }
 
