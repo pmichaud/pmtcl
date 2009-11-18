@@ -3,9 +3,23 @@ INIT { pir::load_bytecode('HLL.pbc'); }
 grammar PmTcl::Grammar is HLL::Grammar {
     token TOP { <command> }
 
-    rule command { [<word> ]+ }
+    token command { [ <.ws> <word> ]+ }
 
     token word { \S+ }
+
+    INIT {
+        PmTcl::Grammar.O(':prec<13>', '%multiplicative');
+        PmTcl::Grammar.O(':prec<12>', '%additive');
+    }
+
+    token term:sym<integer> { <integer> }
+
+    token infix:sym<*> { <sym> <O('%multiplicative, :pirop<mul>')> }
+    token infix:sym</> { <sym> <O('%multiplicative, :pirop<div>')> }
+
+    token infix:sym<+> { <sym> <O('%additive, :pirop<add>')> }
+    token infix:sym<-> { <sym> <O('%additive, :pirop<sub>')> }
+
 }
 
 
@@ -24,6 +38,8 @@ class PmTcl::Actions is HLL::Actions {
     }
 
     method word($/) { make ~$/; }
+
+    method term:sym<integer>($/) { make $<integer>.ast; }
 }
 
 
@@ -37,3 +53,14 @@ my @ARGS := pir::getinterp__P()[2];
 PmTcl::Compiler.command_line(@ARGS);
 
 our sub puts($x) { pir::say($x); ''; }
+
+our sub expr(*@args) { 
+    my $parse := 
+        PmTcl::Grammar.parse(
+            pir::join(' ', @args), 
+            :rule('EXPR'),
+            :actions(PmTcl::Actions) 
+        );
+    pir::say(PAST::Compiler.eval(PAST::Block.new($parse.ast)));
+}
+
