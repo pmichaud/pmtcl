@@ -71,12 +71,23 @@ class PmTcl::Actions is HLL::Actions {
     method quoted_word($/) { make $<compound_word>.ast; }
 
     method compound_word($/) {
-        my $past := $<word_atom>[0].ast;
-        my $n := +$<word_atom>;
-        my $i := 1;
-        while $i < $n {
-            $past := PAST::Op.new( $past, $<word_atom>[$i].ast, :pirop<concat>);
-            $i++;
+        my @parts;
+        my $lastlit := '';
+        for $<word_atom> {
+            my $ast := $_.ast;
+            if !PAST::Node.ACCEPTS($ast) {
+                $lastlit := $lastlit ~ $ast;
+            }
+            else {
+                if $lastlit gt '' { @parts.push($lastlit); }
+                @parts.push($ast);
+                $lastlit := '';
+            }
+        }
+        if $lastlit gt '' { @parts.push($lastlit); }
+        my $past := @parts ?? @parts.shift !! '';
+        while @parts {
+            $past := PAST::Op.new( $past, @parts.shift, :pirop<concat>);
         }
         make $past;
     }
