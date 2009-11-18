@@ -6,11 +6,16 @@ grammar PmTcl::Grammar is HLL::Grammar {
     token command { [ <.ws> <word> ]+ }
 
     token word { 
+       :my $*IN_QUOTE := 0;
+       [
        | <WORD=braced_word>
+       | <WORD=quoted_word>
        | <WORD=compound_word>
+       ]
     }
 
     token braced_word { '{' $<val>=[<-[}]>*] '}' }
+    token quoted_word { '"' :my $*IN_QUOTE := 1; <compound_word> '"' }
 
     token compound_word { <word_atom>+ }
    
@@ -18,11 +23,14 @@ grammar PmTcl::Grammar is HLL::Grammar {
     token word_atom:sym<$>    { <variable> }
     token word_atom:sym<[ ]>  { '[' ~ ']' <command> }
     token word_atom:sym<bare> { <-barestopper>+ }
+    token word_atom:sym<nl>   { '\n' }
+    token word_atom:sym<backslash> { \\ $<chr>=[.] }
+    token word_atom:sym<ws>   { \s+ <?{ $*IN_QUOTE }> }
 
     token identifier { <ident> ** '::' }
     token variable { '$' <identifier> }
 
-    token barestopper { \s | <[\$\[\]]> }
+    token barestopper { \s | <[ \\ \$ \[ \] ]> | \" <?{ $*IN_QUOTE }> }
 
     # expression parsing
 
@@ -60,6 +68,7 @@ class PmTcl::Actions is HLL::Actions {
     method word($/) { make $<WORD>.ast; }
 
     method braced_word($/) { make ~$<val>; }
+    method quoted_word($/) { make $<compound_word>.ast; }
 
     method compound_word($/) {
         my $past := $<word_atom>[0].ast;
@@ -72,10 +81,12 @@ class PmTcl::Actions is HLL::Actions {
         make $past;
     }
 
-    method word_atom:sym<$>($/)    { make $<variable>.ast; }
-    method word_atom:sym<[ ]>($/)  { make $<command>.ast; }
-    method word_atom:sym<bare>($/) { make ~$/; }
-
+    method word_atom:sym<$>($/)         { make $<variable>.ast; }
+    method word_atom:sym<[ ]>($/)       { make $<command>.ast; }
+    method word_atom:sym<bare>($/)      { make ~$/; }
+    method word_atom:sym<nl>($/)        { make "\n"; }
+    method word_atom:sym<backslash>($/) { make ~$<chr>; }
+    method word_atom:sym<ws>($/)        { make ~$/; }
 
     method variable($/) {
         make PAST::Var.new( :scope<keyed>,
