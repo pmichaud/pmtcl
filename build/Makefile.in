@@ -37,9 +37,17 @@ PARROT_PERL_LIB  = $(PARROT_TOOLS_DIR)/lib
 
 NQP_LANG_DIR     = $(PARROT_LIB_DIR)/languages/nqp
 
-PMTCL_SOURCES = src/PmTcl.pm
 PMTCL_EXE     = pmtcl$(EXE)
-
+PMTCL_G_PIR   = src/gen/pmtcl-grammar.pir
+PMTCL_A_PIR   = src/gen/pmtcl-actions.pir
+PMTCL_C_PIR   = src/gen/pmtcl-compiler.pir
+PMTCL_B_PIR   = src/gen/pmtcl-commands.pir
+PMTCL_SOURCES = \
+    src/PmTcl.pir \
+    $(PMTCL_G_PIR) \
+    $(PMTCL_A_PIR) \
+    $(PMTCL_C_PIR) \
+    $(PMTCL_B_PIR) \
 
 CLEANUPS = \
   *.manifest \
@@ -52,9 +60,17 @@ all: $(PMTCL_EXE)
 
 $(PMTCL_EXE) : $(PMTCL_SOURCES)
 	$(MKPATH) src/gen
-	$(PARROT_NQP) --target=pir -o src/gen/pmtcl.pir src/PmTcl.pm
-	$(PARROT) -o pmtcl.pbc src/gen/pmtcl.pir
+	$(PARROT) -o pmtcl.pbc src/PmTcl.pir
 	$(PBC_TO_EXE) pmtcl.pbc
+
+$(PMTCL_G_PIR): src/PmTcl/Grammar.pm
+	$(PARROT_NQP) --target=pir -o $(PMTCL_G_PIR) src/PmTcl/Grammar.pm
+$(PMTCL_A_PIR): src/PmTcl/Actions.pm
+	$(PARROT_NQP) --target=pir -o $(PMTCL_A_PIR) src/PmTcl/Actions.pm
+$(PMTCL_C_PIR): src/PmTcl/Compiler.pm
+	$(PARROT_NQP) --target=pir -o $(PMTCL_C_PIR) src/PmTcl/Compiler.pm
+$(PMTCL_B_PIR): src/PmTcl/Commands.pm
+	$(PARROT_NQP) --target=pir -o $(PMTCL_B_PIR) src/PmTcl/Commands.pm
 
 ## cleaning
 
