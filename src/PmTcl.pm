@@ -12,9 +12,11 @@ grammar PmTcl::Grammar is HLL::Grammar {
 
     token braced_word { '{' $<val>=[<-[}]>*] '}' }
 
-    token compound_word { 
-        | <command_substitution>
-        | <bareword>
+    token compound_word { <word_atom>+ }
+    
+    token word_atom { 
+        | <ATOM=command_substitution>
+        | <ATOM=bareword>
     }
 
     token command_substitution { '[' ~ ']' <command> }
@@ -58,11 +60,18 @@ class PmTcl::Actions is HLL::Actions {
 
     method braced_word($/) { make ~$<val>; }
 
-    method compound_word($/) { 
-        make $<bareword> 
-             ?? $<bareword>.ast
-             !! $<command_substitution>.ast;
+    method compound_word($/) {
+        my $past := $<word_atom>[0].ast;
+        my $n := +$<word_atom>;
+        my $i := 1;
+        while $i < $n {
+            $past := PAST::Op.new( $past, $<word_atom>[$i].ast, :pirop<concat>);
+            $i++;
+        }
+        make $past;
     }
+
+    method word_atom($/) { make $<ATOM>.ast; }
 
     method bareword($/) { make ~$/; }
     method command_substitution($/) { make $<command>.ast; }
