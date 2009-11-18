@@ -13,14 +13,14 @@ grammar PmTcl::Grammar is HLL::Grammar {
     token braced_word { '{' $<val>=[<-[}]>*] '}' }
 
     token compound_word { <word_atom>+ }
-    
-    token word_atom { 
-        | <ATOM=command_substitution>
-        | <ATOM=bareword>
-    }
+   
+    proto token word_atom { <...> }
+    token word_atom:sym<$>    { <variable> }
+    token word_atom:sym<[ ]>  { '[' ~ ']' <command> }
+    token word_atom:sym<bare> { <-barestopper>+ }
 
-    token command_substitution { '[' ~ ']' <command> }
-    token bareword { <-barestopper>+ }
+    token identifier { <ident> ** '::' }
+    token variable { '$' <identifier> }
 
     token barestopper { \s | <[\$\[\]]> }
 
@@ -32,6 +32,7 @@ grammar PmTcl::Grammar is HLL::Grammar {
     }
 
     token term:sym<integer> { <integer> }
+    token term:sym<variable> { <variable> }
 
     token infix:sym<*> { <sym> <O('%multiplicative, :pirop<mul>')> }
     token infix:sym</> { <sym> <O('%multiplicative, :pirop<div>')> }
@@ -71,11 +72,20 @@ class PmTcl::Actions is HLL::Actions {
         make $past;
     }
 
-    method word_atom($/) { make $<ATOM>.ast; }
+    method word_atom:sym<$>($/)    { make $<variable>.ast; }
+    method word_atom:sym<[ ]>($/)  { make $<command>.ast; }
+    method word_atom:sym<bare>($/) { make ~$/; }
 
-    method bareword($/) { make ~$/; }
-    method command_substitution($/) { make $<command>.ast; }
 
+    method variable($/) {
+        make PAST::Var.new( :scope<keyed>,
+                 PAST::Var.new( :name('%VARS'), :scope<package> ),
+                 ~$<identifier>,
+                 :node($/)
+             );
+    }
+
+    method term:sym<variable>($/) { make $<variable>.ast; }
     method term:sym<integer>($/) { make $<integer>.ast; }
 }
 
@@ -100,4 +110,11 @@ our sub expr(*@args) {
         );
     PAST::Compiler.eval(PAST::Block.new($parse.ast));
 }
+
+our sub set($varname, $value) {
+    our %VARS;
+    %VARS{$varname} := $value;
+    $value;
+}
+
 
