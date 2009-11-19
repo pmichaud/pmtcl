@@ -4,6 +4,8 @@ grammar PmTcl::Grammar is HLL::Grammar;
 
 token TOP { <command> }
 
+token body { <command> }
+
 token command { [ <.ws> <word> ]+ }
 
 token word { 

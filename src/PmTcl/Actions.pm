@@ -1,6 +1,34 @@
 class PmTcl::Actions is HLL::Actions;
 
-method TOP($/) { make $<command>.ast; }
+our $LEXPAD;
+
+INIT { $LEXPAD := PAST::Var.new( :name('lexpad'), :scope('register') ); }
+
+method TOP($/) { 
+    my $block := 
+        PAST::Block.new(
+            PAST::Stmts.new(
+                PAST::Op.new( :inline('    .local pmc lexpad',
+                                      '    get_hll_global lexpad, "%VARS"',
+                                      '    .lex "%VARS", lexpad') )
+            ),
+            $<command>.ast
+        );
+    make $block;
+}
+
+method body($/) {
+    my $block := 
+        PAST::Block.new(
+            PAST::Stmts.new(
+                PAST::Op.new( :inline('    .local pmc lexpad',
+                                      '    new lexpad, ["Hash"]',
+                                      '    .lex "%VARS", lexpad') )
+            ),
+            $<command>.ast
+        );
+    make $block;
+}
 
 method command($/) {
     my $past := PAST::Op.new( :name(~$<word>[0].ast), :node($/) );
@@ -59,7 +87,7 @@ sub concat_atoms(@atoms) {
 
 method variable($/) {
     make PAST::Var.new( :scope<keyed>,
-             PAST::Var.new( :name('%VARS'), :scope<package> ),
+             $LEXPAD,
              ~$<identifier>,
              :node($/)
          );
